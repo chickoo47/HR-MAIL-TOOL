@@ -1,8 +1,10 @@
+import contextlib
 import csv
 import io
 import os
 import re
 import smtplib
+import socket
 import threading
 import time
 import uuid
@@ -32,6 +34,31 @@ JOB_TTL_SECONDS = 2 * 60 * 60
 
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 465
+
+_GETADDRINFO_LOCK = threading.Lock()
+_orig_getaddrinfo = socket.getaddrinfo
+
+
+@contextlib.contextmanager
+def _force_ipv4():
+    """Some cloud hosts have no outbound IPv6 route, so a plain SMTP_SSL(host, port)
+    call can fail with 'Network is unreachable' if getaddrinfo returns an AAAA record
+    first. Temporarily restrict resolution to IPv4 for the connect call."""
+
+    def ipv4_only(host, port, family=0, type=0, proto=0, flags=0):
+        return _orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+
+    with _GETADDRINFO_LOCK:
+        socket.getaddrinfo = ipv4_only
+        try:
+            yield
+        finally:
+            socket.getaddrinfo = _orig_getaddrinfo
+
+
+def connect_smtp(timeout=20):
+    with _force_ipv4():
+        return smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=timeout)
 
 JOBS = {}
 JOBS_LOCK = threading.Lock()
@@ -148,7 +175,7 @@ BODY:
 def run_campaign(job_id, resume_bytes, resume_filename, resume_text, sender_name, sender_email, app_password, contacts):
     job = JOBS[job_id]
     try:
-        smtp = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=20)
+        smtp = connect_smtp()
         smtp.login(sender_email, app_password)
         for i, (company, email) in enumerate(contacts):
             try:
@@ -164,7 +191,7 @@ def run_campaign(job_id, resume_bytes, resume_filename, resume_text, sender_name
                 try:
                     smtp.send_message(msg)
                 except (smtplib.SMTPServerDisconnected, smtplib.SMTPException):
-                    smtp = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=20)
+                    smtp = connect_smtp()
                     smtp.login(sender_email, app_password)
                     smtp.send_message(msg)
                 result = {"company": company, "email": email, "status": "sent", "subject": subject}
@@ -235,7 +262,7 @@ async def start_campaign(
         raise HTTPException(400, f"Too many recipients ({len(contacts)}); max {MAX_RECIPIENTS} per campaign")
 
     try:
-        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=20) as smtp:
+        with connect_smtp() as smtp:
             smtp.login(sender_email, app_password)
     except smtplib.SMTPAuthenticationError:
         raise HTTPException(
