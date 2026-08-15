@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HR Mailer</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="wrap">
+  <h1>HR Mailer</h1>
+  <p class="subtitle">Upload your resume and a list of company/HR emails. Each email is drafted individually from your resume and sent from your own Gmail with your resume attached.</p>
+
+  <div class="notice">
+    Your Gmail App Password is used only to send this batch and is never stored on disk. Use an
+    <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">App Password</a>, not your real password.
+    Only use recipient lists you have a legitimate reason to contact.
+  </div>
+
+  <form id="campaign-form">
+    <div class="field">
+      <label for="sender_name">Your name</label>
+      <input type="text" id="sender_name" name="sender_name" required placeholder="e.g. Aryan M">
+    </div>
+
+    <div class="field">
+      <label for="sender_email">Your Gmail address</label>
+      <input type="email" id="sender_email" name="sender_email" required placeholder="you@gmail.com">
+    </div>
+
+    <div class="field">
+      <label for="app_password">Gmail App Password</label>
+      <input type="password" id="app_password" name="app_password" required placeholder="16-character app password">
+    </div>
+
+    <div class="field">
+      <label>Resume (PDF only)</label>
+      <div class="dropzone" id="resume-drop">
+        <span id="resume-label">Drag &amp; drop your resume PDF here, or click to browse</span>
+        <input type="file" id="resume-input" accept="application/pdf" hidden>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Recipient list (.xlsx or .csv — must contain company + email columns)</label>
+      <div class="dropzone" id="recipients-drop">
+        <span id="recipients-label">Drag &amp; drop your recipient list here, or click to browse</span>
+        <input type="file" id="recipients-input" accept=".xlsx,.csv" hidden>
+      </div>
+    </div>
+
+    <button type="submit" id="submit-btn">Send Applications</button>
+  </form>
+
+  <div id="error-banner" class="error-banner" hidden></div>
+
+  <div id="progress-section" hidden>
+    <h2>Sending progress</h2>
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="progress-fill"></div>
+    </div>
+    <p id="progress-text">0 / 0 sent</p>
+    <table id="results-table">
+      <thead><tr><th>Company</th><th>Email</th><th>Status</th></tr></thead>
+      <tbody id="results-body"></tbody>
+    </table>
+  </div>
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>
